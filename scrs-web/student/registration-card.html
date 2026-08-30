@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Registration Card | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+<div class="no-print" style="text-align:center;padding:16px;background:#eef3f8;">
+    <button class="btn" id="download-pdf-btn">⬇️ Download as PDF</button>
+    <button class="btn secondary" onclick="window.print()">🖨️ Print</button>
+    <a class="btn secondary" href="my-registration.html">&larr; Back</a>
+</div>
+
+<div class="card-print" id="card-content"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireStudent('../');
+
+const session = getSession();
+const student = Store.findStudentById(session.id);
+const registration = Store.registrationForStudent(student.id);
+
+if (!registration) {
+    window.location.href = 'register.html';
+}
+
+const cardContent = document.getElementById('card-content');
+cardContent.innerHTML = `
+    <h2>COURSE REGISTRATION CARD</h2>
+    <p class="sub-heading">Student Course Registration System</p>
+
+    <table>
+        <tr>
+            <td style="width:70%;border:none;vertical-align:top;">
+                <table style="border:none;">
+                    <tr><td style="border:none;padding:4px 0;"><b>Student Name:</b></td><td style="border:none;padding:4px 0;">${esc(student.name)}</td></tr>
+                    <tr><td style="border:none;padding:4px 0;"><b>Enrollment Number:</b></td><td style="border:none;padding:4px 0;">${esc(student.enrollment_no)}</td></tr>
+                    <tr><td style="border:none;padding:4px 0;"><b>Faculty Number:</b></td><td style="border:none;padding:4px 0;">${esc(student.faculty_no)}</td></tr>
+                    <tr><td style="border:none;padding:4px 0;"><b>Email:</b></td><td style="border:none;padding:4px 0;">${esc(student.email)}</td></tr>
+                    <tr><td style="border:none;padding:4px 0;"><b>Mobile Number:</b></td><td style="border:none;padding:4px 0;">${esc(student.mobile)}</td></tr>
+                </table>
+            </td>
+            <td style="width:30%;text-align:center;border:none;">
+                ${student.profile_pic
+                    ? `<img id="student-photo" style="border-radius:6px;width:100px;height:100px;object-fit:cover;" src="${student.profile_pic}" alt="Profile">`
+                    : `<div style="width:100px;height:100px;border:1px dashed #999;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;margin:0 auto;">No Photo</div>`
+                }
+            </td>
+        </tr>
+    </table>
+
+    <h3 style="margin-top:24px;color:#1f3c58;">Selected Courses</h3>
+    <table>
+        <tr><th>S.No</th><th>Course Code</th><th>Course Name</th><th>Credit</th><th>Mode</th></tr>
+        ${registration.courses.map((c, i) => `
+            <tr><td>${i + 1}</td><td>${esc(c.code)}</td><td>${esc(c.name)}</td><td>${c.credit}</td><td>${esc(c.mode)}</td></tr>
+        `).join('')}
+    </table>
+
+    <h3 style="margin-top:24px;color:#1f3c58;">Credit Summary</h3>
+    <table>
+        <tr><th style="width:220px;">Maximum Credit</th><td>${student.max_credit}</td></tr>
+        <tr><th>Selected Credit</th><td>${registration.total_credit}</td></tr>
+        <tr><th>Remaining Credit</th><td>${registration.remaining_credit}</td></tr>
+    </table>
+
+    <p style="margin-top:20px;">
+        <b>Registration ID:</b> ${esc(registration.registration_id)}<br>
+        <b>Registration Date:</b> ${new Date(registration.date).toLocaleString()}
+    </p>
+
+    <div class="sig-row">
+        <div>Student Signature</div>
+        <div>Admin Signature</div>
+    </div>
+`;
+
+// ---- Generate a real downloadable PDF using jsPDF ----
+document.getElementById('download-pdf-btn').addEventListener('click', () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const marginLeft = 50;
+    let y = 50;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('COURSE REGISTRATION CARD', 297, y, { align: 'center' });
+    y += 18;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Student Course Registration System', 297, y, { align: 'center' });
+    doc.setTextColor(0);
+    y += 30;
+
+    // Profile photo (top right) if available
+    if (student.profile_pic) {
+        try { doc.addImage(student.profile_pic, 'JPEG', 460, 50, 80, 80); } catch (e) { /* unsupported format, skip */ }
+    }
+
+    doc.setFontSize(11);
+    const fields = [
+        ['Student Name:', student.name],
+        ['Enrollment Number:', student.enrollment_no],
+        ['Faculty Number:', student.faculty_no],
+        ['Email:', student.email],
+        ['Mobile Number:', student.mobile]
+    ];
+    fields.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, marginLeft, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(value), marginLeft + 130, y);
+        y += 18;
+    });
+
+    y += 15;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Selected Courses', marginLeft, y);
+    y += 15;
+
+    // Simple table header
+    doc.setFontSize(10);
+    const colX = [marginLeft, marginLeft + 50, marginLeft + 130, marginLeft + 340, marginLeft + 400];
+    const headers = ['S.No', 'Code', 'Course Name', 'Credit', 'Mode'];
+    headers.forEach((h, i) => doc.text(h, colX[i], y));
+    y += 6;
+    doc.line(marginLeft, y, 545, y);
+    y += 14;
+
+    doc.setFont('helvetica', 'normal');
+    registration.courses.forEach((c, i) => {
+        doc.text(String(i + 1), colX[0], y);
+        doc.text(c.code, colX[1], y);
+        doc.text(c.name.length > 35 ? c.name.substring(0, 32) + '...' : c.name, colX[2], y);
+        doc.text(String(c.credit), colX[3], y);
+        doc.text(c.mode, colX[4], y);
+        y += 16;
+    });
+
+    y += 10;
+    doc.line(marginLeft, y, 545, y);
+    y += 20;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Credit Summary', marginLeft, y);
+    y += 18;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Maximum Credit: ${student.max_credit}`, marginLeft, y); y += 16;
+    doc.text(`Selected Credit: ${registration.total_credit}`, marginLeft, y); y += 16;
+    doc.text(`Remaining Credit: ${registration.remaining_credit}`, marginLeft, y); y += 26;
+
+    doc.text(`Registration ID: ${registration.registration_id}`, marginLeft, y); y += 16;
+    doc.text(`Registration Date: ${new Date(registration.date).toLocaleString()}`, marginLeft, y); y += 60;
+
+    doc.line(marginLeft, y, marginLeft + 150, y);
+    doc.line(345, y, 495, y);
+    y += 12;
+    doc.setFontSize(9);
+    doc.text('Student Signature', marginLeft, y);
+    doc.text('Admin Signature', 345, y);
+
+    doc.save(`RegistrationCard_${registration.registration_id}.pdf`);
+});
+</script>
+</body>
+</html>

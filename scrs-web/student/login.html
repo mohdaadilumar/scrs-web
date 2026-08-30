@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Login | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="auth-box">
+    <h2>Student Login</h2>
+    <p class="sub">Student Course Registration System</p>
+    <div id="error-box"></div>
+    <form id="login-form">
+        <label>Enrollment Number</label>
+        <input type="text" id="enrollment_no" required autofocus>
+        <label>Password</label>
+        <input type="password" id="password" required>
+        <button type="submit" class="btn btn-full">Login</button>
+    </form>
+    <p style="margin-top:16px;font-size:13px;color:#667;">
+        Don't have an account? Contact the Admin — student accounts are created by Admin only.
+    </p>
+    <p style="font-size:13px;"><a href="../admin/login.html">Admin login instead &rarr;</a></p>
+    <p style="margin-top:10px;font-size:12px;color:#999;">Sample: ENR2026001 / student123</p>
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+seedIfEmpty();
+
+if (getSession() && getSession().role === 'student') {
+    window.location.href = 'dashboard.html';
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const enrollment_no = document.getElementById('enrollment_no').value.trim();
+    const password = document.getElementById('password').value;
+    const ok = await studentLogin(enrollment_no, password);
+    if (ok) {
+        window.location.href = 'dashboard.html';
+    } else {
+        document.getElementById('error-box').innerHTML =
+            '<div class="alert alert-error">Invalid enrollment number or password.</div>';
+    }
+});
+</script>
+</body>
+</html>

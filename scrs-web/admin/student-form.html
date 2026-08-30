@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="page-title">Add Student - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container">
+
+<div class="card" style="max-width:560px;">
+    <h2 id="form-heading">Add Student</h2>
+    <div id="error-box"></div>
+
+    <img id="current-pic" class="profile-pic" style="display:none;margin-bottom:10px;" alt="Profile">
+
+    <form id="student-form">
+        <label>Student Name</label>
+        <input type="text" id="name" required>
+
+        <label>Enrollment Number (used for student login)</label>
+        <input type="text" id="enrollment_no" required>
+
+        <label>Faculty Number</label>
+        <input type="text" id="faculty_no" required>
+
+        <label>Email</label>
+        <input type="email" id="email" required>
+
+        <label>Mobile Number</label>
+        <input type="tel" id="mobile" required>
+
+        <label id="password-label">Password</label>
+        <input type="password" id="password">
+        <p id="password-hint" style="font-size:12px;color:#889;display:none;">Leave blank to keep the current password.</p>
+
+        <label>Maximum Credit Limit</label>
+        <input type="number" id="max_credit" min="1" value="24" required>
+
+        <label>Profile Picture (optional)</label>
+        <input type="file" id="profile_pic" accept=".jpg,.jpeg,.png,.gif">
+
+        <button type="submit" class="btn" id="submit-btn">Save Student</button>
+        <a href="students.html" class="btn secondary">Cancel</a>
+    </form>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+
+const params = new URLSearchParams(window.location.search);
+const editId = params.get('id') ? Number(params.get('id')) : null;
+let existingPic = null;
+
+if (editId) {
+    document.getElementById('page-title').textContent = 'Edit Student - Admin | SCRS';
+    document.getElementById('form-heading').textContent = 'Edit Student';
+    document.getElementById('password-label').textContent = 'Reset Password';
+    document.getElementById('password').placeholder = 'New password (optional)';
+    document.getElementById('password-hint').style.display = 'block';
+    document.getElementById('submit-btn').textContent = 'Update Student';
+
+    const student = Store.findStudentById(editId);
+    if (!student) {
+        setFlash('error', 'Student not found.');
+        window.location.href = 'students.html';
+    } else {
+        document.getElementById('name').value = student.name;
+        document.getElementById('enrollment_no').value = student.enrollment_no;
+        document.getElementById('faculty_no').value = student.faculty_no;
+        document.getElementById('email').value = student.email;
+        document.getElementById('mobile').value = student.mobile;
+        document.getElementById('max_credit').value = student.max_credit;
+        existingPic = student.profile_pic;
+        if (existingPic) {
+            const img = document.getElementById('current-pic');
+            img.src = existingPic;
+            img.style.display = 'inline-block';
+        }
+    }
+}
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+document.getElementById('student-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errors = [];
+
+    const name = document.getElementById('name').value.trim();
+    const enrollment_no = document.getElementById('enrollment_no').value.trim();
+    const faculty_no = document.getElementById('faculty_no').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const mobile = document.getElementById('mobile').value.trim();
+    const password = document.getElementById('password').value;
+    const max_credit = Number(document.getElementById('max_credit').value);
+    const fileInput = document.getElementById('profile_pic');
+
+    if (!name) errors.push('Student name is required.');
+    if (!enrollment_no) errors.push('Enrollment number is required.');
+    if (!faculty_no) errors.push('Faculty number is required.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('A valid email is required.');
+    if (!mobile) errors.push('Mobile number is required.');
+    if (!editId && password.length < 4) errors.push('Password must be at least 4 characters.');
+    if (editId && password.length > 0 && password.length < 4) errors.push('New password must be at least 4 characters.');
+    if (!max_credit || max_credit <= 0) errors.push('Maximum credit limit must be greater than 0.');
+
+    const data = Store.get();
+    const dupe = data.students.find(s => s.enrollment_no.toLowerCase() === enrollment_no.toLowerCase() && s.id !== editId);
+    if (dupe) errors.push('This enrollment number is already used by another student.');
+
+    let profilePic = existingPic;
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const allowed = ['image/jpeg', 'image/png', 'image/gif'];
+        if (!allowed.includes(file.type)) {
+            errors.push('Profile picture must be a JPG, PNG, or GIF file.');
+        } else if (file.size > 2 * 1024 * 1024) {
+            errors.push('Profile picture must be smaller than 2MB.');
+        } else {
+            profilePic = await readFileAsDataURL(file);
+        }
+    }
+
+    if (errors.length) {
+        document.getElementById('error-box').innerHTML =
+            errors.map(err => `<div class="alert alert-error">${esc(err)}</div>`).join('');
+        return;
+    }
+
+    if (editId) {
+        const student = data.students.find(s => s.id === editId);
+        student.name = name;
+        student.enrollment_no = enrollment_no;
+        student.faculty_no = faculty_no;
+        student.email = email;
+        student.mobile = mobile;
+        student.max_credit = max_credit;
+        student.profile_pic = profilePic;
+        if (password.length > 0) {
+            student.passwordHash = await hashPassword(password);
+        }
+        Store.save(data);
+        setFlash('success', 'Student updated successfully.');
+    } else {
+        const newStudent = {
+            id: nextId(data.students),
+            name, enrollment_no, faculty_no, email, mobile,
+            passwordHash: await hashPassword(password),
+            max_credit,
+            profile_pic: profilePic,
+            created_at: new Date().toISOString()
+        };
+        data.students.push(newStudent);
+        Store.save(data);
+        setFlash('success', 'Student added successfully.');
+    }
+
+    window.location.href = 'students.html';
+});
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

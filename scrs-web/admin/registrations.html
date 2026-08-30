@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registrations - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container">
+<div class="card">
+    <h2>Course Registrations (<span id="reg-count">0</span>)</h2>
+    <div id="reg-list"></div>
+</div>
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+
+const data = Store.get();
+document.getElementById('reg-count').textContent = data.registrations.length;
+const list = document.getElementById('reg-list');
+
+if (data.registrations.length === 0) {
+    list.innerHTML = '<p style="color:#667;">No students have submitted course registrations yet.</p>';
+} else {
+    const sorted = data.registrations.slice().sort((a, b) => b.id - a.id);
+    list.innerHTML = sorted.map(r => {
+        const student = Store.findStudentById(r.student_id);
+        if (!student) return '';
+        return `
+        <div class="card" style="background:#fafcff;">
+            <h3>${esc(student.name)} <span class="badge">${esc(student.enrollment_no)}</span></h3>
+            <p style="margin:4px 0;color:#556;">
+                Faculty No: ${esc(student.faculty_no)} &nbsp;|&nbsp;
+                Registration ID: <b>${esc(r.registration_id)}</b> &nbsp;|&nbsp;
+                Date: ${new Date(r.date).toLocaleString()} &nbsp;|&nbsp;
+                Total Credit: <b>${r.total_credit}</b>
+            </p>
+            <table>
+                <tr><th>Code</th><th>Course Name</th><th>Credit</th><th>Mode</th></tr>
+                ${r.courses.map(c => `<tr><td>${esc(c.code)}</td><td>${esc(c.name)}</td><td>${c.credit}</td><td>${esc(c.mode)}</td></tr>`).join('')}
+            </table>
+        </div>`;
+    }).join('');
+}
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

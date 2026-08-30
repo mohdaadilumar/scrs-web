@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Registration - Student | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Student Portal</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">My Profile</a>
+        <a href="register.html">Course Registration</a>
+        <a href="my-registration.html">My Registration</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="flash-container">
+<div class="card" id="content">
+    <h2>My Registration</h2>
+</div>
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireStudent('../');
+renderFlash('flash-container');
+
+const session = getSession();
+const student = Store.findStudentById(session.id);
+const registration = Store.registrationForStudent(student.id);
+const content = document.getElementById('content');
+
+if (!registration) {
+    content.innerHTML += `
+        <p style="color:#667;">You haven't submitted a course registration yet.</p>
+        <a href="register.html" class="btn">Go to Course Registration</a>
+    `;
+} else {
+    content.innerHTML += `
+        <h3>Student Details</h3>
+        <table>
+            <tr><th style="width:200px;">Student Name</th><td>${esc(student.name)}</td></tr>
+            <tr><th>Enrollment Number</th><td>${esc(student.enrollment_no)}</td></tr>
+            <tr><th>Faculty Number</th><td>${esc(student.faculty_no)}</td></tr>
+            <tr><th>Email</th><td>${esc(student.email)}</td></tr>
+            <tr><th>Mobile Number</th><td>${esc(student.mobile)}</td></tr>
+        </table>
+
+        <h3>Selected Courses</h3>
+        <table>
+            <tr><th>Code</th><th>Course Name</th><th>Credit</th><th>Mode</th></tr>
+            ${registration.courses.map(c => `<tr><td>${esc(c.code)}</td><td>${esc(c.name)}</td><td>${c.credit}</td><td>${esc(c.mode)}</td></tr>`).join('')}
+        </table>
+
+        <h3>Credit Details</h3>
+        <table>
+            <tr><th style="width:200px;">Maximum Credit</th><td>${student.max_credit}</td></tr>
+            <tr><th>Total Selected Credit</th><td>${registration.total_credit}</td></tr>
+            <tr><th>Remaining Credit</th><td>${registration.remaining_credit}</td></tr>
+        </table>
+
+        <p style="margin-top:16px;">
+            Registration ID: <b>${esc(registration.registration_id)}</b><br>
+            Registration Date: ${new Date(registration.date).toLocaleString()}
+        </p>
+
+        <a href="registration-card.html" class="btn" target="_blank">🖨️ Download Course Registration Card (PDF)</a>
+    `;
+}
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

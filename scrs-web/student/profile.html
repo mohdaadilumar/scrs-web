@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Profile - Student | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Student Portal</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">My Profile</a>
+        <a href="register.html">Course Registration</a>
+        <a href="my-registration.html">My Registration</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container">
+
+<div class="card" style="max-width:520px;">
+    <h2>My Profile</h2>
+    <div id="message-box"></div>
+
+    <img id="current-pic" class="profile-pic" style="display:none;" alt="Profile">
+
+    <table id="readonly-table"></table>
+
+    <form id="profile-form" style="margin-top:16px;">
+        <label>Email</label>
+        <input type="email" id="email" required>
+
+        <label>Mobile Number</label>
+        <input type="tel" id="mobile" required>
+
+        <label>Update Profile Picture</label>
+        <input type="file" id="profile_pic" accept=".jpg,.jpeg,.png,.gif">
+
+        <button type="submit" class="btn">Save Changes</button>
+    </form>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireStudent('../');
+
+const session = getSession();
+let student = Store.findStudentById(session.id);
+
+function renderStudent() {
+    document.getElementById('readonly-table').innerHTML = `
+        <tr><th style="width:180px;">Student Name</th><td>${esc(student.name)} <span style="color:#999;font-size:12px;">(not editable)</span></td></tr>
+        <tr><th>Enrollment Number</th><td>${esc(student.enrollment_no)} <span style="color:#999;font-size:12px;">(not editable)</span></td></tr>
+        <tr><th>Faculty Number</th><td>${esc(student.faculty_no)} <span style="color:#999;font-size:12px;">(not editable)</span></td></tr>
+        <tr><th>Maximum Credit Limit</th><td>${student.max_credit} <span style="color:#999;font-size:12px;">(not editable)</span></td></tr>
+    `;
+    document.getElementById('email').value = student.email;
+    document.getElementById('mobile').value = student.mobile;
+    const img = document.getElementById('current-pic');
+    if (student.profile_pic) {
+        img.src = student.profile_pic;
+        img.style.display = 'inline-block';
+    } else {
+        img.style.display = 'none';
+    }
+}
+renderStudent();
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errors = [];
+
+    const email = document.getElementById('email').value.trim();
+    const mobile = document.getElementById('mobile').value.trim();
+    const fileInput = document.getElementById('profile_pic');
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('A valid email is required.');
+    if (!mobile) errors.push('Mobile number is required.');
+
+    let profilePic = student.profile_pic;
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const allowed = ['image/jpeg', 'image/png', 'image/gif'];
+        if (!allowed.includes(file.type)) {
+            errors.push('Profile picture must be a JPG, PNG, or GIF file.');
+        } else if (file.size > 2 * 1024 * 1024) {
+            errors.push('Profile picture must be smaller than 2MB.');
+        } else {
+            profilePic = await readFileAsDataURL(file);
+        }
+    }
+
+    if (errors.length) {
+        document.getElementById('message-box').innerHTML =
+            errors.map(err => `<div class="alert alert-error">${esc(err)}</div>`).join('');
+        return;
+    }
+
+    const data = Store.get();
+    const s = data.students.find(x => x.id === student.id);
+    s.email = email;
+    s.mobile = mobile;
+    s.profile_pic = profilePic;
+    Store.save(data);
+    student = s;
+
+    document.getElementById('message-box').innerHTML =
+        '<div class="alert alert-success">Profile updated successfully.</div>';
+    fileInput.value = '';
+    renderStudent();
+});
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

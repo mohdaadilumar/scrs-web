@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Courses - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="flash-container">
+
+<div class="card">
+    <h2>Courses (<span id="course-count">0</span>)</h2>
+    <a href="course-form.html" class="btn">➕ Add Course</a>
+
+    <table id="courses-table">
+        <tr>
+            <th>Course Code</th>
+            <th>Course Name</th>
+            <th>Credit</th>
+            <th>Mode</th>
+            <th>Actions</th>
+        </tr>
+    </table>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+renderFlash('flash-container');
+
+function render() {
+    const data = Store.get();
+    document.getElementById('course-count').textContent = data.courses.length;
+    const table = document.getElementById('courses-table');
+    table.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+
+    if (data.courses.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5">No courses found. Add your first course.</td>';
+        table.appendChild(tr);
+        return;
+    }
+
+    data.courses.slice().sort((a, b) => a.code.localeCompare(b.code)).forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${esc(c.code)}</td>
+            <td>${esc(c.name)}</td>
+            <td>${c.credit}</td>
+            <td><span class="badge">Mode ${esc(c.mode)}</span></td>
+            <td>
+                <a class="btn small secondary" href="course-form.html?id=${c.id}">Edit</a>
+                <button class="btn small danger" data-id="${c.id}" data-name="${esc(c.name)}">Delete</button>
+            </td>
+        `;
+        table.appendChild(tr);
+    });
+
+    table.querySelectorAll('button.danger').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (confirm(`Delete course "${btn.dataset.name}"? It will be removed from any student carts.`)) {
+                deleteCourse(Number(btn.dataset.id));
+            }
+        });
+    });
+}
+
+function deleteCourse(id) {
+    const data = Store.get();
+    data.courses = data.courses.filter(c => c.id !== id);
+    data.cart = data.cart.filter(c => c.course_id !== id);
+    Store.save(data);
+    setFlash('success', 'Course deleted.');
+    render();
+    renderFlash('flash-container');
+}
+
+render();
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Registration - Student | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Student Portal</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">My Profile</a>
+        <a href="register.html">Course Registration</a>
+        <a href="my-registration.html">My Registration</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="page-container">
+
+<div class="card">
+    <h2>Course Registration</h2>
+    <div id="message-box"></div>
+
+    <div class="stats-row">
+        <div class="stat-box"><div class="num" id="stat-max">0</div><div class="label">Maximum Credit</div></div>
+        <div class="stat-box"><div class="num" id="stat-selected">0</div><div class="label">Selected Credit</div></div>
+        <div class="stat-box"><div class="num" id="stat-remaining">0</div><div class="label">Remaining Credit</div></div>
+    </div>
+
+    <table id="courses-table">
+        <tr><th>Code</th><th>Course Name</th><th>Credit</th><th>Mode</th><th>Action</th></tr>
+    </table>
+</div>
+
+<div class="card" id="submit-card">
+    <h3>Ready to submit?</h3>
+    <p style="color:#667;">Once submitted, you will not be able to change your course selection. Please review carefully.</p>
+    <button class="btn" id="submit-btn">Submit Registration</button>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireStudent('../');
+
+const session = getSession();
+const student = Store.findStudentById(session.id);
+
+// If already registered, redirect to My Registration
+if (Store.registrationForStudent(student.id)) {
+    setFlash('error', 'You have already submitted your course registration. Contact Admin if you need changes.');
+    window.location.href = 'my-registration.html';
+}
+
+function showMessage(type, text) {
+    document.getElementById('message-box').innerHTML = `<div class="alert alert-${type}">${esc(text)}</div>`;
+}
+
+function render() {
+    const data = Store.get();
+    const cartRows = data.cart.filter(c => c.student_id === student.id);
+    const selectedIds = cartRows.map(c => c.course_id);
+    const selectedCredit = data.courses
+        .filter(c => selectedIds.includes(c.id))
+        .reduce((sum, c) => sum + c.credit, 0);
+    const remaining = student.max_credit - selectedCredit;
+
+    document.getElementById('stat-max').textContent = student.max_credit;
+    document.getElementById('stat-selected').textContent = selectedCredit;
+    document.getElementById('stat-remaining').textContent = remaining;
+
+    const table = document.getElementById('courses-table');
+    table.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+
+    data.courses.forEach(c => {
+        const isSelected = selectedIds.includes(c.id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${esc(c.code)}</td>
+            <td>${esc(c.name)}</td>
+            <td>${c.credit}</td>
+            <td><span class="badge">Mode ${esc(c.mode)}</span></td>
+            <td>
+                <button class="btn small ${isSelected ? 'danger' : ''}" data-id="${c.id}" data-selected="${isSelected}">
+                    ${isSelected ? 'Deselect' : 'Select'}
+                </button>
+            </td>
+        `;
+        table.appendChild(tr);
+    });
+
+    table.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', () => toggleCourse(Number(btn.dataset.id), btn.dataset.selected === 'true'));
+    });
+
+    document.getElementById('submit-btn').disabled = selectedIds.length === 0;
+}
+
+function toggleCourse(courseId, isSelected) {
+    const data = Store.get();
+
+    if (isSelected) {
+        data.cart = data.cart.filter(c => !(c.student_id === student.id && c.course_id === courseId));
+        Store.save(data);
+        showMessage('info', 'Course removed from your selection.');
+        render();
+        return;
+    }
+
+    const currentCredit = data.cart
+        .filter(c => c.student_id === student.id)
+        .reduce((sum, c) => sum + Store.findCourseById(c.course_id).credit, 0);
+    const course = data.courses.find(c => c.id === courseId);
+
+    if (currentCredit + course.credit > student.max_credit) {
+        showMessage('error', 'Credit limit exceeded. You cannot select this course.');
+        return;
+    }
+
+    data.cart.push({ student_id: student.id, course_id: courseId });
+    Store.save(data);
+    showMessage('success', 'Course selected.');
+    render();
+}
+
+document.getElementById('submit-btn').addEventListener('click', () => {
+    const data = Store.get();
+    const cartRows = data.cart.filter(c => c.student_id === student.id);
+    const cartCourses = cartRows.map(c => Store.findCourseById(c.course_id));
+    const totalCredit = cartCourses.reduce((sum, c) => sum + c.credit, 0);
+
+    if (cartCourses.length === 0) {
+        showMessage('error', 'Please select at least one course before submitting.');
+        return;
+    }
+    if (totalCredit > student.max_credit) {
+        showMessage('error', 'Credit limit exceeded. You cannot submit this registration.');
+        return;
+    }
+    if (!confirm('Submit your course registration? This cannot be changed afterward.')) return;
+
+    const registration = {
+        id: nextId(data.registrations),
+        registration_id: makeRegistrationId(student.id),
+        student_id: student.id,
+        total_credit: totalCredit,
+        remaining_credit: student.max_credit - totalCredit,
+        date: new Date().toISOString(),
+        courses: cartCourses.map(c => ({ code: c.code, name: c.name, credit: c.credit, mode: c.mode }))
+    };
+
+    data.registrations.push(registration);
+    data.cart = data.cart.filter(c => c.student_id !== student.id);
+    Store.save(data);
+
+    setFlash('success', `Registration submitted successfully! Your Registration ID is ${registration.registration_id}.`);
+    window.location.href = 'my-registration.html';
+});
+
+render();
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

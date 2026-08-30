@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Login | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="auth-box">
+    <h2>Admin Login</h2>
+    <p class="sub">Student Course Registration System</p>
+    <div id="error-box"></div>
+    <form id="login-form">
+        <label>Username</label>
+        <input type="text" id="username" required autofocus>
+        <label>Password</label>
+        <input type="password" id="password" required>
+        <button type="submit" class="btn btn-full">Login</button>
+    </form>
+    <p style="margin-top:16px;font-size:13px;"><a href="../student/login.html">Student login instead &rarr;</a></p>
+    <p style="margin-top:10px;font-size:12px;color:#999;">Default: admin / admin123</p>
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+seedIfEmpty();
+
+// If already logged in as admin, skip straight to dashboard
+if (getSession() && getSession().role === 'admin') {
+    window.location.href = 'dashboard.html';
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const ok = await adminLogin(username, password);
+    if (ok) {
+        window.location.href = 'dashboard.html';
+    } else {
+        document.getElementById('error-box').innerHTML =
+            '<div class="alert alert-error">Invalid username or password.</div>';
+    }
+});
+</script>
+</body>
+</html>

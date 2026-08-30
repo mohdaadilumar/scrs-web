@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="flash-container">
+
+<div class="card">
+    <h2 id="welcome-heading">Welcome</h2>
+    <p style="color:#667;">Manage students, courses, and view course registrations from here.</p>
+</div>
+
+<div class="stats-row">
+    <div class="stat-box"><div class="num" id="stat-students">0</div><div class="label">Students</div></div>
+    <div class="stat-box"><div class="num" id="stat-courses">0</div><div class="label">Courses</div></div>
+    <div class="stat-box"><div class="num" id="stat-registrations">0</div><div class="label">Registrations</div></div>
+</div>
+
+<div class="card">
+    <h3>Quick Actions</h3>
+    <div class="menu-grid">
+        <a href="student-form.html">➕ Add Student</a>
+        <a href="students.html">👥 Manage Students</a>
+        <a href="course-form.html">➕ Add Course</a>
+        <a href="courses.html">📚 Manage Courses</a>
+        <a href="registrations.html">📋 View Registrations</a>
+    </div>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+renderFlash('flash-container');
+
+const session = getSession();
+document.getElementById('welcome-heading').textContent = 'Welcome, ' + session.username;
+
+const data = Store.get();
+document.getElementById('stat-students').textContent = data.students.length;
+document.getElementById('stat-courses').textContent = data.courses.length;
+document.getElementById('stat-registrations').textContent = data.registrations.length;
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

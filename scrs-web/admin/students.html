@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Students - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="flash-container">
+
+<div class="card">
+    <h2>Students (<span id="student-count">0</span>)</h2>
+    <a href="student-form.html" class="btn">➕ Add Student</a>
+
+    <table id="students-table">
+        <tr>
+            <th>Name</th>
+            <th>Enrollment No</th>
+            <th>Faculty No</th>
+            <th>Email</th>
+            <th>Mobile</th>
+            <th>Max Credit</th>
+            <th>Actions</th>
+        </tr>
+    </table>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+renderFlash('flash-container');
+
+function render() {
+    const data = Store.get();
+    document.getElementById('student-count').textContent = data.students.length;
+    const table = document.getElementById('students-table');
+
+    // remove existing rows except header
+    table.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+
+    if (data.students.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="7">No students found. Add your first student.</td>';
+        table.appendChild(tr);
+        return;
+    }
+
+    data.students.slice().reverse().forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${esc(s.name)}</td>
+            <td>${esc(s.enrollment_no)}</td>
+            <td>${esc(s.faculty_no)}</td>
+            <td>${esc(s.email)}</td>
+            <td>${esc(s.mobile)}</td>
+            <td>${s.max_credit}</td>
+            <td>
+                <a class="btn small" href="student-view.html?id=${s.id}">View</a>
+                <a class="btn small secondary" href="student-form.html?id=${s.id}">Edit</a>
+                <button class="btn small danger" data-id="${s.id}" data-name="${esc(s.name)}">Delete</button>
+            </td>
+        `;
+        table.appendChild(tr);
+    });
+
+    table.querySelectorAll('button.danger').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (confirm(`Delete student "${btn.dataset.name}"? This also removes their registration data. This cannot be undone.`)) {
+                deleteStudent(Number(btn.dataset.id));
+            }
+        });
+    });
+}
+
+function deleteStudent(id) {
+    const data = Store.get();
+    data.students = data.students.filter(s => s.id !== id);
+    data.cart = data.cart.filter(c => c.student_id !== id);
+    data.registrations = data.registrations.filter(r => r.student_id !== id);
+    Store.save(data);
+    setFlash('success', 'Student deleted.');
+    render();
+    renderFlash('flash-container');
+}
+
+render();
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

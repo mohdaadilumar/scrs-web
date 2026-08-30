@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Details - Admin | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Admin Panel</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="courses.html">Courses</a>
+        <a href="registrations.html">Registrations</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="content"></div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireAdmin('../');
+
+const params = new URLSearchParams(window.location.search);
+const id = Number(params.get('id'));
+const student = Store.findStudentById(id);
+const content = document.getElementById('content');
+
+if (!student) {
+    setFlash('error', 'Student not found.');
+    window.location.href = 'students.html';
+} else {
+    const cart = Store.cartForStudent(student.id);
+    const selectedCredit = cart.reduce((sum, c) => sum + c.credit, 0);
+    const registration = Store.registrationForStudent(student.id);
+
+    let html = `
+    <div class="card">
+        ${student.profile_pic ? `<img class="profile-pic" src="${student.profile_pic}" alt="Profile">` : ''}
+        <h2>${esc(student.name)} <span class="badge">${esc(student.enrollment_no)}</span></h2>
+        <table>
+            <tr><th style="width:220px;">Faculty Number</th><td>${esc(student.faculty_no)}</td></tr>
+            <tr><th>Email</th><td>${esc(student.email)}</td></tr>
+            <tr><th>Mobile</th><td>${esc(student.mobile)}</td></tr>
+            <tr><th>Maximum Credit Limit</th><td>${student.max_credit}</td></tr>
+            <tr><th>Selected Credit (unsubmitted)</th><td>${selectedCredit}</td></tr>
+            <tr><th>Account Created</th><td>${new Date(student.created_at).toLocaleString()}</td></tr>
+        </table>
+        <a href="student-form.html?id=${student.id}" class="btn">Edit</a>
+        <a href="students.html" class="btn secondary">Back to Students</a>
+    </div>
+
+    <div class="card">
+        <h3>Course Registration</h3>
+    `;
+
+    if (registration) {
+        html += `
+        <p>Registration ID: <b>${esc(registration.registration_id)}</b> &nbsp;|&nbsp;
+           Date: ${new Date(registration.date).toLocaleString()} &nbsp;|&nbsp;
+           Total Credit: <b>${registration.total_credit}</b></p>
+        <table>
+            <tr><th>Code</th><th>Course Name</th><th>Credit</th><th>Mode</th></tr>
+            ${registration.courses.map(c => `
+                <tr><td>${esc(c.code)}</td><td>${esc(c.name)}</td><td>${c.credit}</td><td>${esc(c.mode)}</td></tr>
+            `).join('')}
+        </table>`;
+    } else {
+        html += `<p style="color:#667;">This student has not submitted a course registration yet.</p>`;
+    }
+
+    html += `</div>`;
+    content.innerHTML = html;
+}
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>

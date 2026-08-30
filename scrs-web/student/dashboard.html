@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard - Student | SCRS</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="navbar">
+    <div class="brand">🎓 SCRS &mdash; Student Portal</div>
+    <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">My Profile</a>
+        <a href="register.html">Course Registration</a>
+        <a href="my-registration.html">My Registration</a>
+        <a href="#" id="logout-link">Logout</a>
+    </div>
+</div>
+<div class="container" id="flash-container">
+
+<div class="card" id="profile-card"></div>
+
+<div class="stats-row">
+    <div class="stat-box"><div class="num" id="stat-max">0</div><div class="label">Maximum Credit</div></div>
+    <div class="stat-box"><div class="num" id="stat-selected">0</div><div class="label">Selected Credit</div></div>
+    <div class="stat-box"><div class="num" id="stat-remaining">0</div><div class="label">Remaining Credit</div></div>
+</div>
+
+<div id="reg-banner"></div>
+
+<div class="card">
+    <h3>Quick Menu</h3>
+    <div class="menu-grid" id="menu-grid">
+        <a href="profile.html">👤 My Profile</a>
+        <a href="register.html">📚 Course Registration</a>
+        <a href="my-registration.html">📋 My Registration</a>
+    </div>
+</div>
+
+</div>
+
+<script src="../assets/js/db.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+requireStudent('../');
+renderFlash('flash-container');
+
+const session = getSession();
+const student = Store.findStudentById(session.id);
+
+document.getElementById('profile-card').innerHTML = `
+    ${student.profile_pic ? `<img class="profile-pic" src="${student.profile_pic}" alt="Profile">` : ''}
+    <h2>${esc(student.name)}</h2>
+    <table>
+        <tr><th style="width:220px;">Enrollment Number</th><td>${esc(student.enrollment_no)}</td></tr>
+        <tr><th>Faculty Number</th><td>${esc(student.faculty_no)}</td></tr>
+        <tr><th>Email</th><td>${esc(student.email)}</td></tr>
+        <tr><th>Mobile Number</th><td>${esc(student.mobile)}</td></tr>
+    </table>
+`;
+
+const cart = Store.cartForStudent(student.id);
+const selectedCredit = cart.reduce((sum, c) => sum + c.credit, 0);
+const remaining = student.max_credit - selectedCredit;
+
+document.getElementById('stat-max').textContent = student.max_credit;
+document.getElementById('stat-selected').textContent = selectedCredit;
+document.getElementById('stat-remaining').textContent = remaining;
+
+const registration = Store.registrationForStudent(student.id);
+if (registration) {
+    document.getElementById('reg-banner').innerHTML = `
+        <div class="alert alert-success">
+            You have already submitted your course registration (ID: <b>${esc(registration.registration_id)}</b>).
+            View it under "My Registration".
+        </div>`;
+    document.getElementById('menu-grid').innerHTML += `<a href="registration-card.html">🖨️ Download Registration Card</a>`;
+}
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    logout('login.html');
+});
+</script>
+</body>
+</html>
